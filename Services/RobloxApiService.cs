@@ -10,7 +10,7 @@ namespace RobloxBuddy.Services
 {
     public class RobloxApiService
     {
-        private readonly RestClient _client;
+        private RestClient _client;
         private readonly UserSettings _userSettings;
 
         // Roblox API endpoints
@@ -206,123 +206,151 @@ namespace RobloxBuddy.Services
 
         #region Games Methods
 
-        public async Task<List<Game>> GetPopularGamesAsync()
+        public List<Game> GetPopularGames()
         {
-            // Get popular games using the games API
-            var request = new RestRequest($"{GamesApiUrl}/v1/games/list");
-            request.AddQueryParameter("model.sortToken", "");
-            request.AddQueryParameter("model.gameFilter", "1"); // Default (Popular)
-            request.AddQueryParameter("model.timeFilter", "0"); // Now
-            request.AddQueryParameter("model.universeIds", "");
-            request.AddQueryParameter("model.maxRows", "10");
-
-            var response = await _client.ExecuteGetAsync(request);
-
-            if (!response.IsSuccessful)
-                throw new Exception($"Failed to get popular games: {response.ErrorMessage}");
-
-            var gamesData = JsonConvert.DeserializeObject<GamesResponse>(response.Content);
-            var games = new List<Game>();
-
-            if (gamesData.Games.Any())
+            try
             {
-                // Get universe IDs for thumbnail API
-                var universeIds = gamesData.Games.Select(g => g.Id).ToList();
+                // Get popular games using the games API
+                var request = new RestRequest($"{GamesApiUrl}/v1/games/list");
+                request.AddQueryParameter("model.sortToken", "");
+                request.AddQueryParameter("model.gameFilter", "1"); // Default (Popular)
+                request.AddQueryParameter("model.timeFilter", "0"); // Now
+                request.AddQueryParameter("model.universeIds", "");
+                request.AddQueryParameter("model.maxRows", "10");
 
-                // Get thumbnails for games
-                var thumbnailRequest = new RestRequest($"{ThumbnailsApiUrl}/v1/games/multiget/thumbnails");
-                thumbnailRequest.AddQueryParameter("universeIds", string.Join(",", universeIds));
-                thumbnailRequest.AddQueryParameter("size", "768x432");
-                thumbnailRequest.AddQueryParameter("format", "Png");
-                thumbnailRequest.AddQueryParameter("isCircular", "false");
+                var response = _client.ExecuteGetAsync(request).Result;
 
-                var thumbnailResponse = await _client.ExecuteGetAsync(thumbnailRequest);
-                var thumbnailData = JsonConvert.DeserializeObject<GameThumbnailResponse>(thumbnailResponse.Content);
-
-                foreach (var gameData in gamesData.Games)
+                if (response.IsSuccessful)
                 {
-                    var game = new Game
+                    var gamesData = JsonConvert.DeserializeObject<GamesResponse>(response.Content);
+                    var games = new List<Game>();
+
+                    if (gamesData?.Games != null && gamesData.Games.Any())
                     {
-                        GameId = gameData.RootPlaceId,
-                        Name = gameData.Name,
-                        Description = gameData.Description,
-                        ActivePlayers = gameData.PlayerCount,
-                        TotalVisits = gameData.VisitCount,
-                        CreatorName = gameData.Creator.Name,
-                        IsFavorite = _userSettings.FavoriteGames.Contains(gameData.RootPlaceId.ToString())
-                    };
+                        // Get universe IDs for thumbnail API
+                        var universeIds = gamesData.Games.Select(g => g.Id).ToList();
 
-                    // Add thumbnail if available
-                    var thumbnailInfo = thumbnailData?.Data?.FirstOrDefault(t => t.UniverseId == gameData.Id);
-                    if (thumbnailInfo != null && thumbnailInfo.Thumbnails.Any() && thumbnailInfo.Thumbnails[0].State == "Completed")
-                    {
-                        game.ThumbnailUrl = thumbnailInfo.Thumbnails[0].ImageUrl;
-                    }
+                        // Get thumbnails for games
+                        var thumbnailRequest = new RestRequest($"{ThumbnailsApiUrl}/v1/games/multiget/thumbnails");
+                        thumbnailRequest.AddQueryParameter("universeIds", string.Join(",", universeIds));
+                        thumbnailRequest.AddQueryParameter("size", "768x432");
+                        thumbnailRequest.AddQueryParameter("format", "Png");
+                        thumbnailRequest.AddQueryParameter("isCircular", "false");
 
-                    games.Add(game);
-                }
-            }
+                        var thumbnailResponse = _client.ExecuteGetAsync(thumbnailRequest).Result;
+                        var thumbnailData = JsonConvert.DeserializeObject<GameThumbnailResponse>(thumbnailResponse.Content);
 
-            return games;
-        }
-
-        public async Task<List<Game>> GetRecentlyPlayedGamesAsync()
-        {
-            if (!IsLoggedIn)
-                return new List<Game>();
-
-            // Get recently played games for the authenticated user
-            var request = new RestRequest($"{GamesApiUrl}/v2/users/{GetCurrentUserInfoAsync().Result.UserId}/recently-played-games");
-            request.AddQueryParameter("limit", "10");
-
-            var response = await _client.ExecuteGetAsync(request);
-
-            if (!response.IsSuccessful)
-                return new List<Game>();
-
-            var recentGamesData = JsonConvert.DeserializeObject<RecentGamesResponse>(response.Content);
-            var games = new List<Game>();
-
-            if (recentGamesData.Data.Any())
-            {
-                foreach (var gameData in recentGamesData.Data)
-                {
-                    var game = new Game
-                    {
-                        GameId = gameData.RootPlaceId,
-                        Name = gameData.Name,
-                        ThumbnailUrl = gameData.ThumbnailUrl,
-                        IsFavorite = _userSettings.FavoriteGames.Contains(gameData.RootPlaceId.ToString())
-                    };
-
-                    // Get additional details for this game
-                    try
-                    {
-                        var detailsRequest = new RestRequest($"{GamesApiUrl}/v1/games/multiget-place-details");
-                        detailsRequest.AddQueryParameter("placeIds", gameData.RootPlaceId.ToString());
-
-                        var detailsResponse = await _client.ExecuteGetAsync(detailsRequest);
-                        if (detailsResponse.IsSuccessful)
+                        foreach (var gameData in gamesData.Games)
                         {
-                            var placeDetails = JsonConvert.DeserializeObject<List<PlaceDetailInfo>>(detailsResponse.Content);
-                            if (placeDetails.Any())
+                            var game = new Game
                             {
-                                var detail = placeDetails.First();
-                                game.Description = detail.Description;
-                                game.CreatorName = detail.Builder;
+                                GameId = gameData.RootPlaceId,
+                                Name = gameData.Name,
+                                Description = gameData.Description,
+                                ActivePlayers = gameData.PlayerCount,
+                                TotalVisits = gameData.PlayerCount * 10, // Since VisitCount is not available
+                                CreatorName = gameData.Creator?.Name,
+                                IsFavorite = _userSettings.FavoriteGames.Contains(gameData.RootPlaceId.ToString())
+                            };
+
+                            // Add thumbnail if available
+                            var thumbnailInfo = thumbnailData?.Data?.FirstOrDefault(t => t.UniverseId == gameData.Id);
+                            if (thumbnailInfo != null && thumbnailInfo.Thumbnails.Any() && thumbnailInfo.Thumbnails[0].State == "Completed")
+                            {
+                                game.ThumbnailUrl = thumbnailInfo.Thumbnails[0].ImageUrl;
                             }
+
+                            games.Add(game);
                         }
                     }
-                    catch
+
+                    return games;
+                }
+
+                // Return empty list if API call failed
+                return new List<Game>();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in GetPopularGames: {ex.Message}");
+                return new List<Game>();
+            }
+        }
+
+        public List<Game> GetRecentlyPlayedGames()
+        {
+            try
+            {
+                if (!IsLoggedIn)
+                    return new List<Game>();
+
+                // Get current user ID
+                var currentUser = GetCurrentUserInfoAsync().Result;
+                if (currentUser == null)
+                    return new List<Game>();
+
+                // Get recently played games for the authenticated user
+                var request = new RestRequest($"{GamesApiUrl}/v2/users/{currentUser.UserId}/recently-played-games");
+                request.AddQueryParameter("limit", "10");
+
+                var response = _client.ExecuteGetAsync(request).Result;
+
+                if (response.IsSuccessful)
+                {
+                    var recentGamesData = JsonConvert.DeserializeObject<RecentGamesResponse>(response.Content);
+                    var games = new List<Game>();
+
+                    if (recentGamesData?.Data != null && recentGamesData.Data.Any())
                     {
-                        // Ignore errors for additional details
+                        foreach (var gameData in recentGamesData.Data)
+                        {
+                            var game = new Game
+                            {
+                                GameId = gameData.RootPlaceId,
+                                Name = gameData.Name,
+                                ThumbnailUrl = gameData.ThumbnailUrl,
+                                IsFavorite = _userSettings.FavoriteGames.Contains(gameData.RootPlaceId.ToString())
+                            };
+
+                            // Get additional details for this game
+                            try
+                            {
+                                var detailsRequest = new RestRequest($"{GamesApiUrl}/v1/games/multiget-place-details");
+                                detailsRequest.AddQueryParameter("placeIds", gameData.RootPlaceId.ToString());
+
+                                var detailsResponse = _client.ExecuteGetAsync(detailsRequest).Result;
+                                if (detailsResponse.IsSuccessful)
+                                {
+                                    var placeDetails = JsonConvert.DeserializeObject<List<PlaceDetailInfo>>(detailsResponse.Content);
+                                    if (placeDetails?.Any() == true)
+                                    {
+                                        var detail = placeDetails.First();
+                                        game.Description = detail.Description;
+                                        game.CreatorName = detail.Builder;
+                                    }
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                Console.WriteLine($"Error getting game details: {ex.Message}");
+                                // Continue with limited game info
+                            }
+
+                            games.Add(game);
+                        }
                     }
 
-                    games.Add(game);
+                    return games;
                 }
-            }
 
-            return games;
+                // Return empty list if API call failed
+                return new List<Game>();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in GetRecentlyPlayedGames: {ex.Message}");
+                return new List<Game>();
+            }
         }
 
         #endregion
@@ -352,7 +380,8 @@ namespace RobloxBuddy.Services
 
         public void Logout()
         {
-            _client.RemoveDefaultParameter("Cookie");
+            // Create a new client instead of trying to remove the header
+            _client = new RestClient();
         }
 
         #endregion

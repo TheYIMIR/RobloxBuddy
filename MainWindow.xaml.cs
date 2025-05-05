@@ -1,11 +1,9 @@
-﻿using Microsoft.Toolkit.Uwp.Notifications;
-using Windows.Foundation.Collections;
-using Windows.UI.Notifications;
-using RobloxBuddy.Models;
+﻿using RobloxBuddy.Models;
 using RobloxBuddy.Pages;
 using RobloxBuddy.Services;
 using System;
 using System.Windows;
+using MessageBox = System.Windows.MessageBox;
 
 namespace RobloxBuddy
 {
@@ -17,54 +15,41 @@ namespace RobloxBuddy
 
         public MainWindow()
         {
-            InitializeComponent();
-
-            // Get settings from ServiceLocator
-            _userSettings = ServiceLocator.Get<UserSettings>();
-
-            // Initialize background monitor
-            _backgroundMonitor = new BackgroundMonitorService(
-                ServiceLocator.Get<RobloxApiService>(),
-                ServiceLocator.Get<NotificationService>(),
-                _userSettings);
-
-            NavigateToPage(new FriendsPage());
-
-            // Setup notification click handler
-            ToastNotificationManagerCompat.OnActivated += toastArgs =>
+            try
             {
-                // Handle notification clicks
-                System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                InitializeComponent();
+
+                // Get settings from ServiceLocator
+                _userSettings = ServiceLocator.Get<UserSettings>();
+
+                // Initialize background monitor
+                _backgroundMonitor = new BackgroundMonitorService(
+                    ServiceLocator.Get<RobloxApiService>(),
+                    ServiceLocator.Get<NotificationService>(),
+                    _userSettings);
+
+                // Start with friends page
+                NavigateToFriendsPage();
+
+                // Check for saved credentials and auto-login
+                if (!string.IsNullOrEmpty(_userSettings.RobloxToken))
                 {
-                    ShowWindow();
-                    // Handle specific navigation based on the toast arguments
-                    switch (toastArgs.Arguments)
+                    // Auto-login logic here
+                    try
                     {
-                        case "viewFriend":
-                            btnFriends_Click(this, null);
-                            break;
-                        case "viewGame":
-                            btnGames_Click(this, null);
-                            break;
-                        default:
-                            break;
+                        AuthenticateAsync();
                     }
-                });
-            };
-
-            // Check for saved credentials and auto-login
-            if (!string.IsNullOrEmpty(_userSettings.RobloxToken))
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"Auto-login failed: {ex.Message}",
+                            "Login Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    }
+                }
+            }
+            catch (Exception ex)
             {
-                // Auto-login logic here
-                try
-                {
-                    var robloxApiService = ServiceLocator.Get<RobloxApiService>();
-                    AuthenticateAsync();
-                }
-                catch (Exception ex)
-                {
-                    System.Windows.MessageBox.Show($"Auto-login failed: {ex.Message}");
-                }
+                MessageBox.Show($"Error initializing application: {ex.Message}",
+                    "Initialization Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -88,7 +73,8 @@ namespace RobloxBuddy
             }
             catch (Exception ex)
             {
-                System.Windows.MessageBox.Show($"Authentication error: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Authentication error: {ex.Message}",
+                    "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -101,19 +87,34 @@ namespace RobloxBuddy
             }
         }
 
-        private void NavigateToPage(object page)
+        // Navigation methods
+        public void NavigateToPage(object page)
         {
-            MainFrame.Navigate(page);
+            if (MainFrame != null)
+            {
+                MainFrame.Navigate(page);
+            }
         }
 
-        private void btnFriends_Click(object sender, RoutedEventArgs e)
+        public void NavigateToFriendsPage()
         {
             NavigateToPage(new FriendsPage());
         }
 
-        private void btnGames_Click(object sender, RoutedEventArgs e)
+        public void NavigateToGamesPage()
         {
             NavigateToPage(new GamesPage());
+        }
+
+        // UI Event handlers
+        private void btnFriends_Click(object sender, RoutedEventArgs e)
+        {
+            NavigateToFriendsPage();
+        }
+
+        private void btnGames_Click(object sender, RoutedEventArgs e)
+        {
+            NavigateToGamesPage();
         }
 
         private void btnAvatar_Click(object sender, RoutedEventArgs e)
@@ -134,6 +135,7 @@ namespace RobloxBuddy
         private void btnLogin_Click(object sender, RoutedEventArgs e)
         {
             LoginWindow loginWindow = new LoginWindow();
+            loginWindow.Owner = this; // Set owner for proper modal behavior
             if (loginWindow.ShowDialog() == true)
             {
                 // Authenticate and update UI
@@ -143,10 +145,15 @@ namespace RobloxBuddy
 
         private void UpdateLoginStatus(string username)
         {
-            txtUsername.Text = username;
-            btnLogin.Content = "Logout";
-            btnLogin.Click -= btnLogin_Click;
-            btnLogin.Click += btnLogout_Click;
+            if (txtUsername != null && btnLogin != null)
+            {
+                txtUsername.Text = username;
+                btnLogin.Content = "Logout";
+
+                // Remove old handler and add new one
+                btnLogin.Click -= btnLogin_Click;
+                btnLogin.Click += btnLogout_Click;
+            }
         }
 
         private void btnLogout_Click(object sender, RoutedEventArgs e)
@@ -160,16 +167,21 @@ namespace RobloxBuddy
             SettingsManager.SaveSettings(_userSettings);
 
             // Update UI
-            txtUsername.Text = "Not logged in";
-            btnLogin.Content = "Login";
-            btnLogin.Click -= btnLogout_Click;
-            btnLogin.Click += btnLogin_Click;
+            if (txtUsername != null)
+                txtUsername.Text = "Not logged in";
+
+            if (btnLogin != null)
+            {
+                btnLogin.Content = "Login";
+                btnLogin.Click -= btnLogout_Click;
+                btnLogin.Click += btnLogin_Click;
+            }
 
             // Reset current user
             _currentUser = null;
 
             // Navigate to friends page
-            NavigateToPage(new FriendsPage());
+            NavigateToFriendsPage();
         }
 
         public void ShowWindow()
@@ -185,8 +197,18 @@ namespace RobloxBuddy
 
         protected override void OnClosed(EventArgs e)
         {
-            // Stop background monitoring
-            _backgroundMonitor?.StopMonitoring();
+            try
+            {
+                // Stop background monitoring
+                if (_backgroundMonitor != null)
+                {
+                    _backgroundMonitor.StopMonitoring();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error stopping background monitor: {ex.Message}");
+            }
 
             base.OnClosed(e);
         }

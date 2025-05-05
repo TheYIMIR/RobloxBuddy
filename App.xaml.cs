@@ -1,10 +1,9 @@
-﻿using RobloxBuddy.Services;
-using Microsoft.Toolkit.Uwp.Notifications;
-using Windows.Foundation.Collections;
-using Windows.UI.Notifications;
-using System.Configuration;
-using System.Data;
+﻿using RobloxBuddy.Converters;
+using RobloxBuddy.Services;
+using System;
+using System.IO;
 using System.Windows;
+using System.Windows.Forms; // For NotifyIcon
 
 namespace RobloxBuddy
 {
@@ -26,9 +25,37 @@ namespace RobloxBuddy
             MainWindow = new MainWindow();
             MainWindow.Closing += MainWindow_Closing;
 
+            // Initialize system tray icon
+            InitializeNotifyIcon();
+        }
+
+        private void InitializeNotifyIcon()
+        {
             _notifyIcon = new NotifyIcon();
             _notifyIcon.DoubleClick += (s, args) => ShowMainWindow();
-            _notifyIcon.Icon = new System.Drawing.Icon(GetResourceStream(new Uri("pack://application:,,,/Resources/roblox_icon.ico")).Stream);
+
+            try
+            {
+                // Load icon from application resources
+                var iconStream = GetResourceStream(new Uri("pack://application:,,,/Resources/roblox_icon.ico"))?.Stream;
+                if (iconStream != null)
+                {
+                    _notifyIcon.Icon = new System.Drawing.Icon(iconStream);
+                }
+                else
+                {
+                    // Fallback to default application icon
+                    _notifyIcon.Icon = System.Drawing.SystemIcons.Application;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error loading icon: {ex.Message}");
+                // Fallback to system icon
+                _notifyIcon.Icon = System.Drawing.SystemIcons.Application;
+            }
+
+            _notifyIcon.Text = "RobloxBuddy";
             _notifyIcon.Visible = true;
 
             CreateContextMenu();
@@ -36,9 +63,24 @@ namespace RobloxBuddy
 
         private void CreateContextMenu()
         {
-            _notifyIcon.ContextMenuStrip = new ContextMenuStrip();
-            _notifyIcon.ContextMenuStrip.Items.Add("Open").Click += (s, e) => ShowMainWindow();
-            _notifyIcon.ContextMenuStrip.Items.Add("Exit").Click += (s, e) => ExitApplication();
+            // Create context menu for the notify icon
+            ContextMenuStrip contextMenu = new ContextMenuStrip();
+
+            // Add "Open" menu item
+            ToolStripMenuItem openItem = new ToolStripMenuItem("Open");
+            openItem.Click += (s, e) => ShowMainWindow();
+            contextMenu.Items.Add(openItem);
+
+            // Add separator
+            contextMenu.Items.Add(new ToolStripSeparator());
+
+            // Add "Exit" menu item
+            ToolStripMenuItem exitItem = new ToolStripMenuItem("Exit");
+            exitItem.Click += (s, e) => ExitApplication();
+            contextMenu.Items.Add(exitItem);
+
+            // Assign context menu to notify icon
+            _notifyIcon.ContextMenuStrip = contextMenu;
         }
 
         private void ShowMainWindow()
@@ -59,7 +101,10 @@ namespace RobloxBuddy
 
         private void MainWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
-            if (!_isExit)
+            // Check settings to see if we should minimize to tray instead of closing
+            var settings = ServiceLocator.Get<Models.UserSettings>();
+
+            if (!_isExit && settings.MinimizeToTray)
             {
                 e.Cancel = true;
                 MainWindow.Hide(); // Hide window instead of closing
@@ -69,15 +114,41 @@ namespace RobloxBuddy
         private void ExitApplication()
         {
             _isExit = true;
-            MainWindow.Close();
-            _notifyIcon.Dispose();
-            _notifyIcon = null;
+
+            // Clean up notify icon properly
+            if (_notifyIcon != null)
+            {
+                _notifyIcon.Visible = false;
+                _notifyIcon.Dispose();
+                _notifyIcon = null;
+            }
+
+            // Close main window
+            if (MainWindow != null)
+            {
+                MainWindow.Close();
+            }
+
+            // Shutdown the application
             Current.Shutdown();
         }
 
         protected override void OnExit(ExitEventArgs e)
         {
-            ToastNotificationManagerCompat.Uninstall();
+            try
+            {
+                // Clean up resources
+                if (_notifyIcon != null)
+                {
+                    _notifyIcon.Dispose();
+                    _notifyIcon = null;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error cleaning up resources: {ex.Message}");
+            }
+
             base.OnExit(e);
         }
     }

@@ -8,6 +8,10 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
+using Application = System.Windows.Application;
+using Button = System.Windows.Controls.Button;
+using ListView = System.Windows.Controls.ListView;
+using MessageBox = System.Windows.MessageBox;
 
 namespace RobloxBuddy.Pages
 {

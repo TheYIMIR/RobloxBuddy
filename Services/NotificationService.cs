@@ -1,11 +1,12 @@
-﻿using Microsoft.Toolkit.Uwp.Notifications;
-using Windows.Foundation.Collections;
-using Windows.UI.Notifications;
-using RobloxBuddy.Models;
+﻿using RobloxBuddy.Models;
 using System;
 using System.IO;
 using System.Net.Http;
 using System.Threading.Tasks;
+using System.Xml;
+using Windows.UI.Notifications;
+using Windows.Data.Xml.Dom;
+using XmlDocument = Windows.Data.Xml.Dom.XmlDocument;
 
 namespace RobloxBuddy.Services
 {
@@ -13,11 +14,18 @@ namespace RobloxBuddy.Services
     {
         private readonly HttpClient _httpClient;
         private readonly UserSettings _settings;
+        private const string APP_ID = "RobloxBuddy";
 
         public NotificationService()
         {
             _httpClient = new HttpClient();
             _settings = ServiceLocator.Get<UserSettings>();
+
+            // Ensure we have an App ID for notifications
+            if (string.IsNullOrEmpty(APP_ID))
+            {
+                throw new InvalidOperationException("Application ID is required for notifications");
+            }
         }
 
         public void ShowFriendOnlineNotification(string friendName, string activity, string avatarUrl = null)
@@ -25,37 +33,33 @@ namespace RobloxBuddy.Services
             if (!_settings.EnableFriendNotifications)
                 return;
 
-            var builder = new ToastContentBuilder()
-                .AddArgument("action", "viewFriend")
-                .AddArgument("friendName", friendName)
-                .AddText("Friend Online")
-                .AddText($"{friendName} is now online")
-                .AddText(activity);
-
-            // Add avatar image if available
-            if (!string.IsNullOrEmpty(avatarUrl))
+            try
             {
-                try
-                {
-                    // In a real app, download and cache the image
-                    string localPath = DownloadImageAsync(avatarUrl, $"{friendName}_avatar.png").Result;
-                    if (File.Exists(localPath))
-                    {
-                        builder.AddAppLogoOverride(new Uri(localPath), ToastGenericAppLogoCrop.Circle);
-                    }
-                }
-                catch
-                {
-                    // Ignore errors with image download
-                }
+                // Create a simple toast XML template
+                string xml = $@"<toast activationType='foreground' launch='action=viewFriend&amp;friendName={friendName}'>
+                    <visual>
+                        <binding template='ToastGeneric'>
+                            <text>Friend Online</text>
+                            <text>{friendName} is now online</text>
+                            <text>{activity}</text>
+                        </binding>
+                    </visual>
+                </toast>";
+
+                // Create the toast notification
+                var toastXml = new XmlDocument();
+                toastXml.LoadXml(xml);
+
+                // Create and show the toast
+                var toast = new ToastNotification(toastXml);
+
+                // Show the toast
+                ToastNotificationManager.CreateToastNotifier(APP_ID).Show(toast);
             }
-
-            // For .NET 8, set toast expiration
-            var toastNotification = builder.GetToastNotification();
-            toastNotification.ExpirationTime = DateTime.Now.AddSeconds(_settings.NotificationDuration);
-
-            // Show toast
-            ToastNotificationManager.CreateToastNotifier().Show(toastNotification);
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error showing friend notification: {ex.Message}");
+            }
         }
 
         public void ShowGameUpdateNotification(string gameName, string updateInfo, string thumbnailUrl = null)
@@ -63,74 +67,70 @@ namespace RobloxBuddy.Services
             if (!_settings.EnableGameNotifications)
                 return;
 
-            var builder = new ToastContentBuilder()
-                .AddArgument("action", "viewGame")
-                .AddArgument("gameName", gameName)
-                .AddText("Game Update")
-                .AddText(gameName)
-                .AddText(updateInfo);
-
-            // Add game thumbnail if available
-            if (!string.IsNullOrEmpty(thumbnailUrl))
+            try
             {
-                try
-                {
-                    // In a real app, download and cache the image
-                    string localPath = DownloadImageAsync(thumbnailUrl, $"{gameName}_thumbnail.png").Result;
-                    if (File.Exists(localPath))
-                    {
-                        builder.AddHeroImage(new Uri(localPath));
-                    }
-                }
-                catch
-                {
-                    // Ignore errors with image download
-                }
+                // Create a simple toast XML template
+                string xml = $@"<toast activationType='foreground' launch='action=viewGame&amp;gameName={gameName}'>
+                    <visual>
+                        <binding template='ToastGeneric'>
+                            <text>Game Update</text>
+                            <text>{gameName}</text>
+                            <text>{updateInfo}</text>
+                        </binding>
+                    </visual>
+                </toast>";
+
+                // Create the toast notification
+                var toastXml = new XmlDocument();
+                toastXml.LoadXml(xml);
+
+                // Create and show the toast
+                var toast = new ToastNotification(toastXml);
+
+                // Show the toast
+                ToastNotificationManager.CreateToastNotifier(APP_ID).Show(toast);
             }
-
-            // For .NET 8, set toast expiration
-            var toastNotification = builder.GetToastNotification();
-            toastNotification.ExpirationTime = DateTime.Now.AddSeconds(_settings.NotificationDuration);
-
-            // Show toast
-            ToastNotificationManager.CreateToastNotifier().Show(toastNotification);
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error showing game notification: {ex.Message}");
+            }
         }
 
         public void ShowCustomNotification(string title, string message, string action = null, string imageUrl = null)
         {
-            var builder = new ToastContentBuilder()
-                .AddText(title)
-                .AddText(message);
-
-            if (!string.IsNullOrEmpty(action))
+            try
             {
-                builder.AddArgument("action", action);
-            }
+                // Add action parameter if provided
+                string launchParam = "";
+                if (!string.IsNullOrEmpty(action))
+                {
+                    launchParam = $"action={action}";
+                }
 
-            // Add image if available
-            if (!string.IsNullOrEmpty(imageUrl))
+                // Create a simple toast XML template
+                string xml = $@"<toast activationType='foreground' launch='{launchParam}'>
+                    <visual>
+                        <binding template='ToastGeneric'>
+                            <text>{title}</text>
+                            <text>{message}</text>
+                        </binding>
+                    </visual>
+                </toast>";
+
+                // Create the toast notification
+                var toastXml = new XmlDocument();
+                toastXml.LoadXml(xml);
+
+                // Create and show the toast
+                var toast = new ToastNotification(toastXml);
+
+                // Show the toast
+                ToastNotificationManager.CreateToastNotifier(APP_ID).Show(toast);
+            }
+            catch (Exception ex)
             {
-                try
-                {
-                    // In a real app, download and cache the image
-                    string localPath = DownloadImageAsync(imageUrl, $"notification_{Guid.NewGuid()}.png").Result;
-                    if (File.Exists(localPath))
-                    {
-                        builder.AddInlineImage(new Uri(localPath));
-                    }
-                }
-                catch
-                {
-                    // Ignore errors with image download
-                }
+                Console.WriteLine($"Error showing custom notification: {ex.Message}");
             }
-
-            // For .NET 8, set toast expiration
-            var toastNotification = builder.GetToastNotification();
-            toastNotification.ExpirationTime = DateTime.Now.AddSeconds(_settings.NotificationDuration);
-
-            // Show toast
-            ToastNotificationManager.CreateToastNotifier().Show(toastNotification);
         }
 
         private async Task<string> DownloadImageAsync(string url, string filename)
@@ -160,44 +160,25 @@ namespace RobloxBuddy.Services
 
                 return localPath;
             }
-            catch
+            catch (Exception ex)
             {
+                Console.WriteLine($"Error downloading image: {ex.Message}");
                 return null;
             }
         }
 
-        // Add this method to initialize the toast notification activation
-        public static void InitializeNotifications(string appId = "RobloxBuddy")
+        // Static method to initialize the notification system
+        public static void InitializeNotifications()
         {
-            // Register COM server and activator
-            ToastNotificationManagerCompat.OnActivated += toastArgs =>
+            try
             {
-                // Get the arguments from the notification
-                var args = toastArgs.Argument;
-
-                // Dispatch to UI thread
-                App.Current.Dispatcher.Invoke(() =>
-                {
-                    // Handle notification activation
-                    if (App.Current.MainWindow is MainWindow mainWindow)
-                    {
-                        mainWindow.ShowWindow();
-
-                        // Handle specific actions
-                        switch (args)
-                        {
-                            case "viewFriend":
-                                // Navigate to friends page
-                                mainWindow.NavigateToFriendsPage();
-                                break;
-                            case "viewGame":
-                                // Navigate to games page
-                                mainWindow.NavigateToGamesPage();
-                                break;
-                        }
-                    }
-                });
-            };
+                // Register the current process to handle toast activations
+                // No initialization needed for direct ToastNotificationManager use
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error initializing notifications: {ex.Message}");
+            }
         }
     }
 }
