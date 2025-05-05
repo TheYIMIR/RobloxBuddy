@@ -1,0 +1,61 @@
+﻿<Page x:Class="RobloxBuddy.Pages.SettingsPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+      xmlns:local="clr-namespace:RobloxBuddy.Pages"
+      mc:Ignorable="d" 
+      d:DesignHeight="450" d:DesignWidth="800"
+      Title="Settings">
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Text="Settings" FontSize="24" FontWeight="Bold" Grid.Row="0" Margin="0,0,0,20"/>
+
+        <ScrollViewer Grid.Row="1">
+            <StackPanel>
+                <GroupBox Header="Notifications" Padding="10" Margin="0,0,0,15">
+                    <StackPanel>
+                        <CheckBox x:Name="chkFriendNotifications" Content="Friend activity notifications" IsChecked="True" Margin="0,5"/>
+                        <CheckBox x:Name="chkGameNotifications" Content="Game update notifications" IsChecked="True" Margin="0,5"/>
+                        <Grid Margin="0,5">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Notification duration (seconds):" VerticalAlignment="Center"/>
+                            <Slider Grid.Column="1" Minimum="1" Maximum="10" Value="5" x:Name="sldNotificationDuration" 
+                                    TickFrequency="1" IsSnapToTickEnabled="True" TickPlacement="BottomRight" Margin="10,0,0,0"/>
+                        </Grid>
+                    </StackPanel>
+                </GroupBox>
+
+                <GroupBox Header="Application" Padding="10" Margin="0,0,0,15">
+                    <StackPanel>
+                        <CheckBox x:Name="chkMinimizeToTray" Content="Minimize to system tray when closed" IsChecked="True" Margin="0,5"/>
+                        <CheckBox x:Name="chkStartWithWindows" Content="Start with Windows" IsChecked="False" Margin="0,5"/>
+                    </StackPanel>
+                </GroupBox>
+
+                <GroupBox Header="About" Padding="10" Margin="0,0,0,15">
+                    <StackPanel>
+                        <TextBlock Text="RobloxBuddy" FontWeight="Bold"/>
+                        <TextBlock Text="Version 1.0.0" Margin="0,5,0,0"/>
+                        <TextBlock Text="© 2025 RobloxBuddy" Margin="0,5,0,0"/>
+                        <TextBlock Text="This application is not affiliated with Roblox Corporation." FontStyle="Italic" Margin="0,5,0,0"/>
+                        <TextBlock Text="All Roblox names and assets are trademarks of Roblox Corporation." FontStyle="Italic" Margin="0,5,0,0"/>
+                        <TextBlock Text="This application uses the public Roblox API within the Terms of Service." Margin="0,5,0,0"/>
+                    </StackPanel>
+                </GroupBox>
+            </StackPanel>
+        </ScrollViewer>
+
+        <Button Grid.Row="2" Content="Save Settings" Style="{StaticResource RobloxButton}" 
+                HorizontalAlignment="Right" Margin="0,10,0,0" Click="btnSaveSettings_Click"/>
+    </Grid>
+</Page>

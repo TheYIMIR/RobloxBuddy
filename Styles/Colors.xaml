@@ -1,0 +1,12 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+	<!-- Roblox colors -->
+	<SolidColorBrush x:Key="RobloxRed" Color="#FF0000"/>
+	<SolidColorBrush x:Key="RobloxBlue" Color="#00A2FF"/>
+	<SolidColorBrush x:Key="RobloxGreen" Color="#02B757"/>
+	<SolidColorBrush x:Key="RobloxYellow" Color="#FFBC00"/>
+	<SolidColorBrush x:Key="RobloxDarkGray" Color="#393B3D"/>
+	<SolidColorBrush x:Key="RobloxLightGray" Color="#F2F4F5"/>
+	<SolidColorBrush x:Key="RobloxBackground" Color="#F2F4F5"/>
+	<SolidColorBrush x:Key="RobloxText" Color="#393B3D"/>
+</ResourceDictionary>

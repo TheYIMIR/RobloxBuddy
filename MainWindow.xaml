@@ -1,0 +1,45 @@
+﻿<Window x:Class="RobloxBuddy.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:RobloxBuddy"
+        mc:Ignorable="d"
+        Title="RobloxBuddy" Height="650" Width="1000" 
+        WindowStartupLocation="CenterScreen"
+        Icon="/Resources/roblox_icon.ico">
+
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="200" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- Left Navigation Panel -->
+        <Grid Grid.Column="0" Background="{StaticResource RobloxLightGray}">
+            <StackPanel>
+                <Image Source="/Resources/roblox_icon.ico" Width="50" Height="50" Margin="0,20,0,10"/>
+                <TextBlock Text="RobloxBuddy" HorizontalAlignment="Center" FontSize="20" FontWeight="Bold" Margin="0,0,0,20"/>
+                <Separator/>
+
+                <Button x:Name="btnFriends" Content="Friends" Style="{StaticResource NavButton}" Click="btnFriends_Click" />
+                <Button x:Name="btnGames" Content="Games" Style="{StaticResource NavButton}" Click="btnGames_Click" />
+                <Button x:Name="btnAvatar" Content="Avatar" Style="{StaticResource NavButton}" Click="btnAvatar_Click" />
+                <Button x:Name="btnInventory" Content="Inventory" Style="{StaticResource NavButton}" Click="btnInventory_Click" />
+                <Button x:Name="btnSettings" Content="Settings" Style="{StaticResource NavButton}" Click="btnSettings_Click" />
+
+                <Separator Margin="0,20,0,0"/>
+                <TextBlock Text="Account" HorizontalAlignment="Center" FontWeight="Bold" Margin="0,10,0,5"/>
+                <StackPanel x:Name="accountPanel" Margin="10">
+                    <TextBlock Text="Not logged in" x:Name="txtUsername" FontWeight="SemiBold"/>
+                    <Button x:Name="btnLogin" Content="Login" Style="{StaticResource RobloxButton}" Click="btnLogin_Click" Margin="0,10,0,0"/>
+                </StackPanel>
+            </StackPanel>
+        </Grid>
+
+        <!-- Main Content Area -->
+        <Grid Grid.Column="1" Background="White">
+            <Frame x:Name="MainFrame" NavigationUIVisibility="Hidden"/>
+        </Grid>
+    </Grid>
+</Window>
